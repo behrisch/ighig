@@ -29,4 +29,6 @@ Both methods generate three csv files in the output directory given by `-o` (def
 
 ## Plotting
 Currently you need to run `./dashgraph.py`. It requires dash, plotly and pandas.
-It opens a local webserver and you can browse to https://localhost:8050 to see the results.
+It opens a local webserver and you can browse to http://localhost:8050 to see the results.
+
+Both scripts are currently very much work in progress.
