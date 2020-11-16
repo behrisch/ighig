@@ -37,38 +37,45 @@ app.layout = html.Div([
 ])
 
 
-def count_issues(label=None, earlier=None):
-    if label:
-        filtered = issues[issues['label']==label]
-    else:
-        filtered = issues
+def prepare_df(filtered):
     data = filtered[['issue', 'time', 'closed']].drop_duplicates()
     data['inc'] = 1
     data['dec'] = -1
     closed = data[['closed', 'dec']][data['closed'] < pd.Timestamp.now()].rename(columns={'closed':'time', 'dec':'inc'})
-    d = pd.concat([data[['time', 'inc']], closed]).sort_values('time')
-    if earlier is not None:
-        copy = earlier.copy()
+    return pd.concat([data[['time', 'inc']], closed])
+
+def update_count(df):
+    df.sort_values('time', inplace=True)
+    df['count'] = df['inc'].cumsum()
+    return df
+
+def count_issues(label, other):
+    result = {}
+    current = prepare_df(issues[issues['label']==label])
+    for other_label, other_df in other.items():
+        copy = current.copy()
         copy['inc'] = 0
-        d = d.append(copy).sort_values('time')
-    if label:
-        d['label'] = label
-    d['count'] = d['inc'].cumsum()
-    d = d.append(earlier).sort_values('time')
-    print(d)
-    return d
+        other_copy = other_df.copy()
+        other_copy['inc'] = 0
+        current = current.append(other_copy)
+        copy['label'] = other_label
+        result[other_label] = update_count(other_df.append(copy))
+    current['label'] = label
+    result[label] = update_count(current)
+    return result
 
 @app.callback(
     Output('graph-with-selector', 'figure'),
     [Input('label-dropdown', 'value')])
 def update_figure(labels):
     if len(labels) == 0:
-        data = count_issues()
+        data = update_count(prepare_df(issues))
         fig = px.area(data, x="time", y="count")
     else:
-        data = None
+        data_map = {}
         for label in labels:
-            data = count_issues(label, data)
+            data_map = count_issues(label, data_map)
+        data = pd.concat(data_map.values()).sort_values('time')
         print(data)
         fig = px.area(data, x="time", y="count", color='label', color_discrete_map=label_colors)
     for milestone in milestones.values:
