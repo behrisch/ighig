@@ -18,9 +18,7 @@ for milestone in milestones.values:
             xref='x', x0=milestone[1], x1=milestone[1]
         ))
 
-external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
-
-app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
+app = dash.Dash(__name__)
 
 app.layout = html.Div([
     dcc.Graph(id='graph-with-selector'),
@@ -33,14 +31,27 @@ app.layout = html.Div([
         ],
         value=['bug'],
         multi=True
-    )
+    ),
+    dcc.Checklist(
+        id='options-checklist',
+        options=[
+            {'label': 'Include open issues', 'value': 'open'},
+            {'label': 'Include closed issues', 'value': 'closed'},
+            {'label': 'Show milestones', 'value': 'milestones'}
+        ],
+        value=['open', 'milestones']
+    )  
 ])
 
 
-def prepare_df(filtered):
+def prepare_df(filtered, options):
     data = filtered[['issue', 'time', 'closed']].drop_duplicates()
-    data['inc'] = 1
-    data['dec'] = -1
+    if 'open' in options:
+        data['inc'] = 1
+        data['dec'] = 0 if 'closed' in options else -1
+    else:
+        data['inc'] = 0
+        data['dec'] = 1 if 'closed' in options else 0
     closed = data[['closed', 'dec']][data['closed'] < pd.Timestamp.now()].rename(columns={'closed':'time', 'dec':'inc'})
     return pd.concat([data[['time', 'inc']], closed])
 
@@ -49,9 +60,9 @@ def update_count(df):
     df['count'] = df['inc'].cumsum()
     return df
 
-def count_issues(label, other):
+def count_issues(label, other, options):
     result = {}
-    current = prepare_df(issues[issues['label']==label])
+    current = prepare_df(issues[issues['label']==label], options)
     for other_label, other_df in other.items():
         copy = current.copy()
         copy['inc'] = 0
@@ -66,22 +77,24 @@ def count_issues(label, other):
 
 @app.callback(
     Output('graph-with-selector', 'figure'),
-    [Input('label-dropdown', 'value')])
-def update_figure(labels):
+    [Input('label-dropdown', 'value'), Input('options-checklist', 'value')])
+def update_figure(labels, options):
     if len(labels) == 0:
-        data = update_count(prepare_df(issues))
+        data = update_count(prepare_df(issues, options))
         fig = px.area(data, x="time", y="count")
     else:
         data_map = {}
         for label in labels:
-            data_map = count_issues(label, data_map)
+            data_map = count_issues(label, data_map, options)
         data = pd.concat(data_map.values()).sort_values('time')
-        print(data)
+#        print(data)
         fig = px.area(data, x="time", y="count", color='label', color_discrete_map=label_colors)
-    for milestone in milestones.values:
-        if not pd.isnull(milestone[1]):
-            fig.add_annotation(x=milestone[1], y=0, text=milestone[0])
-    fig.update_layout(transition_duration=500, shapes=milestone_lines)
+    if 'milestones' in options:
+        for milestone in milestones.values:
+            if not pd.isnull(milestone[1]):
+                fig.add_annotation(x=milestone[1], y=0, text=milestone[0])
+        fig.update_layout(shapes=milestone_lines)
+    fig.update_layout(transition_duration=500)
     return fig
 
 
