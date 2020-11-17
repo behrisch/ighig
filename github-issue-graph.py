@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import os
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
@@ -7,9 +8,10 @@ from dash.dependencies import Input, Output
 import plotly.express as px
 import pandas as pd
 
-issues = pd.read_csv('issues.csv', parse_dates=['time', 'closed'])
-label_colors = pd.read_csv('labels.csv').set_index('label').to_dict()['color']
-milestones = pd.read_csv('milestones.csv', parse_dates=['due'])
+root = os.path.dirname(__file__)
+issues = pd.read_csv(os.path.join(root, 'issues.csv'), parse_dates=['time', 'closed'])
+label_colors = pd.read_csv(os.path.join(root, 'labels.csv')).set_index('label').to_dict()['color']
+milestones = pd.read_csv(os.path.join(root, 'milestones.csv'), parse_dates=['due'])
 milestone_lines = []
 for milestone in milestones.values:
     if not pd.isnull(milestone[1]):
