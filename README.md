@@ -1,4 +1,4 @@
-# gh-issue-dash
+# GitHub Issue Statistics (ghis)
 Plotting github issue statistics with plotly and dash
 
 Plotting issue data is a two step process.
@@ -6,7 +6,7 @@ Plotting issue data is a two step process.
 2. Generate the graph
 
 ## Retrieving data
-The first step is done using github-issue-data.py. It can either use the GitHub API directly
+The first step is done using github_issue_data.py. It can either use the GitHub API directly
 (with the help of [PyGithub](https://github.com/PyGithub/PyGithub/)) or parse the output of
 the backup tool [github-backup](https://github.com/josegonzalez/python-github-backup/).
 
@@ -17,18 +17,42 @@ GitHub API (currently 5000 requests per hour).
 For the first method you need to authenticate yourself using a token or user/password. 
 If you give either on the command line the script assumes you want the direct API access:
 ```
-./github-issue-data.py -t THiS_IS_A_TOKEN user/my_repo
+./github_issue_data.py -t THiS_IS_A_TOKEN user/my_repo
 ```
 will retrieve the data from https://github.com/user/my_repo/.
 
 The second method only needs the root directory of the backup:
 ```
-./github-issue-data.py github-backup/repositories/my_repo/
+./github_issue_data.py github-backup/repositories/my_repo/
 ```
 Both methods generate three csv files in the output directory given by `-o` (default is the current directory).
 
-## Plotting
-Currently you need to run `./github-issue-graph.py`. It requires dash, plotly and pandas.
+## Plotting locally
+Configure the locations of your input files and the labels you want to show in ghis_config.py.
+
+To test everything locally you need to run `./github_issue_graph.py`. It requires dash, plotly and pandas.
 It opens a local webserver and you can browse to http://localhost:8050 to see the results.
 
-Both scripts are currently very much work in progress.
+## Deploying on Apache
+1. Copy at least github_issue_graph.py, ghis.wsgi and ghis_config.py together with your generated data files
+to your web server, for instance to /srv/www/ghis.
+
+2. Add something like this to your /etc/apache2/sites-available/000-default.conf
+ (or wherever your Apache configuration lives). Adapt IP restrictions to the numbers you want to allow.
+```
+WSGIScriptAlias /ghis /srv/www/ghis/ghis.wsgi
+<Directory /srv/www/ghis>
+    WSGIApplicationGroup %{GLOBAL}
+    <RequireAll>
+        Require all granted
+        Require ip  ip.to.be.allowed
+    </RequireAll>
+</Directory>
+```
+The first parameter to WSGIScriptAlias defines the last part of the URL to find the results. 
+
+3. Adapt your ghis_config.py, especially make sure that requests_pathname_prefix
+ is the same as your WSGIScriptAlias.
+
+## Disclaimer
+All scripts are very much work in progress.

@@ -8,10 +8,11 @@ from dash.dependencies import Input, Output
 import plotly.express as px
 import pandas as pd
 
-root = os.path.dirname(__file__)
-issues = pd.read_csv(os.path.join(root, 'issues.csv'), parse_dates=['time', 'closed'])
-label_colors = pd.read_csv(os.path.join(root, 'labels.csv')).set_index('label').to_dict()['color']
-milestones = pd.read_csv(os.path.join(root, 'milestones.csv'), parse_dates=['due'])
+import ghis_config
+
+issues = pd.read_csv(ghis_config.issue_file, parse_dates=['time', 'closed'])
+label_colors = pd.read_csv(ghis_config.label_file).set_index('label').to_dict()['color']
+milestones = pd.read_csv(ghis_config.milestone_file, parse_dates=['due'])
 milestone_lines = []
 for milestone in milestones.values:
     if not pd.isnull(milestone[1]):
@@ -20,18 +21,14 @@ for milestone in milestones.values:
             xref='x', x0=milestone[1], x1=milestone[1]
         ))
 
-app = dash.Dash(__name__)
+app = dash.Dash(__name__, requests_pathname_prefix=ghis_config.requests_pathname_prefix)
 
 app.layout = html.Div([
     dcc.Graph(id='graph-with-selector'),
     dcc.Dropdown(
         id='label-dropdown',
-        options=[
-            {'label': 'bug', 'value': 'bug'},
-            {'label': 'enhancement', 'value': 'enhancement'},
-            {'label': 'question', 'value': 'question'}
-        ],
-        value=['bug'],
+        options=[{'label': label, 'value': label} for label in ghis_config.stacked_labels],
+        value=ghis_config.default_labels,
         multi=True
     ),
     dcc.Checklist(
