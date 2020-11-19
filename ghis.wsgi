@@ -1,5 +1,5 @@
 import os
-iimport sys
+import sys
 
 THIS_DIR = os.path.abspath(os.path.dirname(__file__))
 
