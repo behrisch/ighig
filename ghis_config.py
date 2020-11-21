@@ -11,3 +11,14 @@ default_labels=stacked_labels[:1]
 
 requests_pathname_prefix=None
 # requests_pathname_prefix='/ghis/'
+
+
+def get_label_filters(labels):
+    app_label = []
+    the_rest = []
+    for label in labels:
+        if label.startswith("a:"):
+            app_label.append(label)
+        else:
+            the_rest.append(label)
+    return app_label, the_rest

@@ -18,6 +18,8 @@ def parse_args():
     parser.add_argument('-t', '--token', help='personal access or OAuth token')
     parser.add_argument('-r', '--close-regex', default='changed status from .* to "closed"',
                         help='regular expression to have a comment as closing event')
+    parser.add_argument('-e', '--creator-regex', default=r'"reporter": "(\w*)"',
+                        help='regular expression to have a comment as closing event')
     parser.add_argument('-o', '--output-directory', default='.',
                         help='directory at which to write the issue data')
     return parser.parse_args()
@@ -39,7 +41,7 @@ def write_milestones(outdir, milestones):
 
 def read_json(root, options):
     with open(os.path.join(options.output_directory, 'issues.csv'), 'w') as out:
-        print('issue,time,closed,by,label,assignee', file=out)
+        print('issue,time,closed,creator,label,assignee', file=out)
         writer = csv.writer(out)
         for issueFile in os.listdir(os.path.join(root, "issues")):
             issue = json.load(open(os.path.join(root, "issues", issueFile)))
@@ -48,9 +50,14 @@ def read_json(root, options):
                 for comment in issue["comment_data"]:
                     if re.search(options.close_regex, comment["body"]):
                         closed = comment["created_at"]
+            creator = issue["user"]["login"]
+            if options.creator_regex:
+                creator_match = re.search(options.creator_regex, issue["body"])
+                if creator_match:
+                    creator = creator_match.group(1)
             for label in issue.get("labels") or [{}]:
                 for assignee in issue.get("assignees") or [{}]:
-                    writer.writerow((issue["number"], issue["created_at"], closed, issue["user"]["login"], label.get("name"), assignee.get("login")))
+                    writer.writerow((issue["number"], issue["created_at"], closed, creator, label.get("name"), assignee.get("login")))
     write_labels(options.output_directory, json.load(open(os.path.join(root, "labels", "labels.json"))))
     milestones = []
     for milestoneFile in os.listdir(os.path.join(root, "milestones")):
@@ -59,7 +66,7 @@ def read_json(root, options):
 
 def read_github_api(repo, options):
     with open(os.path.join(options.output_directory, 'issues.csv'), 'w') as out:
-        print('issue,time,closed,by,label,assignee', file=out)
+        print('issue,time,closed,creator,label,assignee', file=out)
         writer = csv.writer(out)
         for issue in repo.get_issues(state="all"):
             # print(issue.raw_data)

@@ -11,6 +11,8 @@ import pandas as pd
 import ghis_config
 
 issues = pd.read_csv(ghis_config.issue_file, parse_dates=['time', 'closed'])
+creators = issues[['issue', 'creator']].drop_duplicates().groupby('creator').count()
+top_creators = creators.sort_values('issue', ascending=False).index[:10]
 label_colors = pd.read_csv(ghis_config.label_file).set_index('label').to_dict()['color']
 milestones = pd.read_csv(ghis_config.milestone_file, parse_dates=['due'])
 milestone_lines = []
@@ -22,15 +24,35 @@ for milestone in milestones.values:
         ))
 
 app = dash.Dash(__name__, requests_pathname_prefix=ghis_config.requests_pathname_prefix)
+filter_dropdowns = []
+filter_inputs = []
+for idx, label_filter in enumerate(ghis_config.get_label_filters(label_colors)):
+    filter_dropdowns.append(dcc.Dropdown(
+        id='label-dropdown%s' % idx,
+        options=[{'label': label, 'value': label} for label in label_filter],
+        value=[],
+        multi=True
+    ))
+    filter_inputs.append(Input('label-dropdown%s' % idx, 'value'))
 
 app.layout = html.Div([
     dcc.Graph(id='graph-with-selector'),
+    html.Label("Issue categories to plot"),
     dcc.Dropdown(
         id='label-dropdown',
         options=[{'label': label, 'value': label} for label in ghis_config.stacked_labels],
         value=ghis_config.default_labels,
         multi=True
     ),
+    html.Label("Creator filter"),
+    dcc.Dropdown(
+        id='creator-dropdown',
+        options=[{'label': creator, 'value': creator} for creator in top_creators],
+        value=[],
+        multi=True
+    ),
+    html.Label("Label filters")
+    ] + filter_dropdowns + [
     dcc.Checklist(
         id='options-checklist',
         options=[
@@ -42,9 +64,16 @@ app.layout = html.Div([
     )  
 ])
 
+inputs = [Input('label-dropdown', 'value'), Input('options-checklist', 'value'), Input('creator-dropdown', 'value')] + filter_inputs
 
-def prepare_df(filtered, options):
-    data = filtered[['issue', 'time', 'closed']].drop_duplicates()
+
+def prepare_df(category_issues, options, filter_map):
+    filtered = category_issues[['issue', 'time', 'closed']]
+    for column, filters in filter_map.items():
+        for f in filters:
+            if len(f) > 0:
+                filtered = filtered.merge(issues[issues[column].isin(f)][['issue', 'time', 'closed']])
+    data = filtered.drop_duplicates().copy()
     if 'open' in options:
         data['inc'] = 1
         data['dec'] = 0 if 'closed' in options else -1
@@ -59,9 +88,9 @@ def update_count(df):
     df['count'] = df['inc'].cumsum()
     return df
 
-def count_issues(label, other, options):
+def count_issues(label, other, options, filters):
     result = {}
-    current = prepare_df(issues[issues['label']==label], options)
+    current = prepare_df(issues[issues.label==label], options, filters)
     for other_label, other_df in other.items():
         copy = current.copy()
         copy['inc'] = 0
@@ -74,19 +103,20 @@ def count_issues(label, other, options):
     result[label] = update_count(current)
     return result
 
-@app.callback(
-    Output('graph-with-selector', 'figure'),
-    [Input('label-dropdown', 'value'), Input('options-checklist', 'value')])
-def update_figure(labels, options):
-    if len(labels) == 0:
-        data = update_count(prepare_df(issues, options))
+@app.callback(Output('graph-with-selector', 'figure'), inputs)
+def update_figure(stack_labels, options, creator_filter, *label_filters):
+    filters = {"creator": [creator_filter], "label": label_filters}
+    if len(stack_labels) == 0:
+        data = update_count(prepare_df(issues, options, filters))
         fig = px.area(data, x="time", y="count")
     else:
         data_map = {}
-        for label in labels:
-            data_map = count_issues(label, data_map, options)
+        for label in stack_labels:
+            data_map = count_issues(label, data_map, options, filters)
         data = pd.concat(data_map.values()).sort_values('time')
 #        print(data)
+        if data.empty:
+            return px.scatter(x=[0], y=[0])
         fig = px.area(data, x="time", y="count", color='label', color_discrete_map=label_colors)
     if 'milestones' in options:
         for milestone in milestones.values:
