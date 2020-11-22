@@ -8,13 +8,13 @@ from dash.dependencies import Input, Output
 import plotly.express as px
 import pandas as pd
 
-import ghis_config
+import ighig_config
 
-issues = pd.read_csv(ghis_config.issue_file, parse_dates=['time', 'closed'])
+issues = pd.read_csv(ighig_config.issue_file, parse_dates=['time', 'closed'])
 creators = issues[['issue', 'creator']].drop_duplicates().groupby('creator').count()
 top_creators = creators.sort_values('issue', ascending=False).index[:10]
-label_colors = pd.read_csv(ghis_config.label_file).set_index('label').to_dict()['color']
-milestones = pd.read_csv(ghis_config.milestone_file, parse_dates=['due'])
+label_colors = pd.read_csv(ighig_config.label_file).set_index('label').to_dict()['color']
+milestones = pd.read_csv(ighig_config.milestone_file, parse_dates=['due'])
 milestone_lines = []
 for milestone in milestones.values:
     if not pd.isnull(milestone[1]):
@@ -23,10 +23,10 @@ for milestone in milestones.values:
             xref='x', x0=milestone[1], x1=milestone[1]
         ))
 
-app = dash.Dash(__name__, requests_pathname_prefix=ghis_config.requests_pathname_prefix)
+app = dash.Dash(__name__, requests_pathname_prefix=ighig_config.requests_pathname_prefix)
 filter_dropdowns = []
 filter_inputs = []
-for idx, label_filter in enumerate(ghis_config.get_label_filters(label_colors)):
+for idx, label_filter in enumerate(ighig_config.get_label_filters(label_colors)):
     filter_dropdowns.append(dcc.Dropdown(
         id='label-dropdown%s' % idx,
         options=[{'label': label, 'value': label} for label in label_filter],
@@ -40,8 +40,8 @@ app.layout = html.Div([
     html.Label("Issue categories to plot"),
     dcc.Dropdown(
         id='label-dropdown',
-        options=[{'label': label, 'value': label} for label in ghis_config.stacked_labels],
-        value=ghis_config.default_labels,
+        options=[{'label': label, 'value': label} for label in ighig_config.stacked_labels],
+        value=ighig_config.default_labels,
         multi=True
     ),
     html.Label("Creator filter"),
