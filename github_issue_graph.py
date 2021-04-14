@@ -10,7 +10,7 @@ import pandas as pd
 
 import ighig_config
 
-issues = pd.read_csv(ighig_config.issue_file, parse_dates=['time', 'closed'])
+issues = pd.read_csv(ighig_config.issue_file)
 creators = issues[['issue', 'creator']].drop_duplicates().groupby('creator').count()
 top_creators = creators.sort_values('issue', ascending=False).index[:10]
 label_colors = pd.read_csv(ighig_config.label_file).set_index('label').to_dict()['color']
@@ -80,7 +80,7 @@ def prepare_df(category_issues, options, filter_map):
     else:
         data['inc'] = 0
         data['dec'] = 1 if 'closed' in options else 0
-    closed = data[['closed', 'dec']][data['closed'] < pd.Timestamp.now()].rename(columns={'closed':'time', 'dec':'inc'})
+    closed = data[['closed', 'dec']][data['closed'] < "2222"].rename(columns={'closed':'time', 'dec':'inc'})
     return pd.concat([data[['time', 'inc']], closed])
 
 def update_count(df):
