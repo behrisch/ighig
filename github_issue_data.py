@@ -52,7 +52,7 @@ def read_json(root, options):
                         closed = comment["created_at"]
             creator = issue["user"]["login"]
             if options.creator_regex:
-                creator_match = re.search(options.creator_regex, issue["body"])
+                creator_match = re.search(options.creator_regex, issue["body"] or "")
                 if creator_match:
                     creator = creator_match.group(1)
             for label in issue.get("labels") or [{}]:
