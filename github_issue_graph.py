@@ -84,7 +84,7 @@ def prepare_df(category_issues, options, filter_map):
     return pd.concat([data[['time', 'inc']], closed])
 
 def update_count(df):
-    df.sort_values('time', inplace=True)
+    df.sort_values(['time', 'inc'], ascending=[True, False], inplace=True)
     df['count'] = df['inc'].cumsum()
     return df
 
