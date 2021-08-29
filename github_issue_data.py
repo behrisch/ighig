@@ -16,10 +16,10 @@ def parse_args():
                              'If a username is given but not a password, the '
                              'password will be prompted for.')
     parser.add_argument('-t', '--token', help='personal access or OAuth token')
-    parser.add_argument('-r', '--close-regex', default='changed status from .* to "closed"',
-                        help='regular expression to have a comment as closing event')
-    parser.add_argument('-e', '--creator-regex', default=r'"reporter": "(\w*)"',
-                        help='regular expression to have a comment as closing event')
+    parser.add_argument('-r', '--close-regex', default=r'"changetime": "([^"]*)"',
+                        help='regular expression to find close time in the issue body (for trac legacy)')
+    parser.add_argument('-e', '--creator-regex', default=r'"reporter": "([^"]*)"',
+                        help='regular expression to find creator in the issue body (for trac legacy)')
     parser.add_argument('-o', '--output-directory', default='.',
                         help='directory at which to write the issue data')
     return parser.parse_args()
@@ -45,11 +45,13 @@ def read_json(root, options):
         writer = csv.writer(out)
         for issueFile in os.listdir(os.path.join(root, "issues")):
             issue = json.load(open(os.path.join(root, "issues", issueFile)))
-            closed = issue["closed_at"] if issue["closed_at"] else "2222-01-01T00:00:00Z"
-            if options.close_regex:
-                for comment in issue["comment_data"]:
-                    if re.search(options.close_regex, comment["body"]):
-                        closed = comment["created_at"]
+            closed = "2222-01-01T00:00:00Z"
+            if issue["closed_at"]:
+                closed = issue["closed_at"]
+                if options.close_regex:
+                    closed_match = re.search(options.close_regex, issue["body"] or "")
+                    if closed_match:
+                        closed = closed_match.group(1)
             creator = issue["user"]["login"]
             if options.creator_regex:
                 creator_match = re.search(options.creator_regex, issue["body"] or "")
