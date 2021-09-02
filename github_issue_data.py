@@ -36,7 +36,10 @@ def write_milestones(outdir, milestones):
         print('milestone,due', file=out)
         writer = csv.writer(out)
         for milestone in milestones:
-            due = milestone["closed_at"] if milestone["closed_at"] else milestone["due_on"]
+            if milestone["due_on"] and milestone["closed_at"] == milestone["created_at"]:
+                due = milestone["due_on"]
+            else:
+                due = milestone["closed_at"]
             writer.writerow((milestone["title"], due))
 
 def read_json(root, options):
