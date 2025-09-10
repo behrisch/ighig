@@ -1,20 +1,23 @@
 #!/usr/bin/env python3
 
-import os
 import dash
-import dash_core_components as dcc
-import dash_html_components as html
+from dash import dcc, html
 from dash.dependencies import Input, Output
 import plotly.express as px
 import pandas as pd
 
 import ighig_config
 
-issues = pd.read_csv(ighig_config.issue_file)
+if ighig_config.issue_file.endswith(".parquet"):
+    issues = pd.read_parquet(ighig_config.issue_file)
+    label_colors = pd.read_parquet(ighig_config.label_file).set_index('label').to_dict()['color']
+    milestones = pd.read_parquet(ighig_config.milestone_file)
+else:
+    issues = pd.read_csv(ighig_config.issue_file)
+    label_colors = pd.read_csv(ighig_config.label_file).set_index('label').to_dict()['color']
+    milestones = pd.read_csv(ighig_config.milestone_file, parse_dates=['due'])
 creators = issues[['issue', 'creator']].drop_duplicates().groupby('creator').count()
 top_creators = creators.sort_values('issue', ascending=False).index[:10]
-label_colors = pd.read_csv(ighig_config.label_file).set_index('label').to_dict()['color']
-milestones = pd.read_csv(ighig_config.milestone_file, parse_dates=['due'])
 milestone_lines = []
 for milestone in milestones.values:
     if not pd.isnull(milestone[1]):
@@ -39,9 +42,9 @@ app.layout = html.Div([
     dcc.Graph(id='graph-with-selector'),
     html.Label("Issue categories to plot"),
     dcc.Dropdown(
-        id='label-dropdown',
-        options=[{'label': label, 'value': label} for label in ighig_config.stacked_labels],
-        value=ighig_config.default_labels,
+        id='category-dropdown',
+        options=[{'label': category, 'value': category} for category in ighig_config.categories],
+        value=ighig_config.selected_categories,
         multi=True
     ),
     html.Label("Creator filter"),
@@ -64,7 +67,7 @@ app.layout = html.Div([
     )  
 ])
 
-inputs = [Input('label-dropdown', 'value'), Input('options-checklist', 'value'), Input('creator-dropdown', 'value')] + filter_inputs
+inputs = [Input('category-dropdown', 'value'), Input('options-checklist', 'value'), Input('creator-dropdown', 'value')] + filter_inputs
 
 
 def prepare_df(category_issues, options, filter_map):
@@ -88,31 +91,34 @@ def update_count(df):
     df['count'] = df['inc'].cumsum()
     return df
 
-def count_issues(label, other, options, filters):
+def count_issues(category, other, options, filters):
     result = {}
-    current = prepare_df(issues[issues.label==label], options, filters)
+    if ighig_config.use_types:
+        current = prepare_df(issues[issues.type==category], options, filters)
+    else:
+        current = prepare_df(issues[issues.label==category], options, filters)
     for other_label, other_df in other.items():
         copy = current.copy()
         copy['inc'] = 0
         other_copy = other_df.copy()
         other_copy['inc'] = 0
-        current = current.append(other_copy)
+        current = pd.concat([current, other_copy])
         copy['label'] = other_label
-        result[other_label] = update_count(other_df.append(copy))
-    current['label'] = label
-    result[label] = update_count(current)
+        result[other_label] = update_count(pd.concat([other_df, copy]))
+    current['label'] = category
+    result[category] = update_count(current)
     return result
 
 @app.callback(Output('graph-with-selector', 'figure'), inputs)
-def update_figure(stack_labels, options, creator_filter, *label_filters):
+def update_figure(categories, options, creator_filter, *label_filters):
     filters = {"creator": [creator_filter], "label": label_filters}
-    if len(stack_labels) == 0:
+    if len(categories) == 0:
         data = update_count(prepare_df(issues, options, filters))
         fig = px.area(data, x="time", y="count")
     else:
         data_map = {}
-        for label in stack_labels:
-            data_map = count_issues(label, data_map, options, filters)
+        for category in categories:
+            data_map = count_issues(category, data_map, options, filters)
         data = pd.concat(data_map.values()).sort_values('time')
 #        print(data)
         if data.empty:
@@ -128,4 +134,4 @@ def update_figure(stack_labels, options, creator_filter, *label_filters):
 
 
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run(debug=True)

@@ -1,3 +1,5 @@
-dash
-plotly>=4.0
+dash>=2.0
 pandas
+plotly>=4.0
+pyarrow
+requests
