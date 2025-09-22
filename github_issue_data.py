@@ -14,7 +14,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Retrieve github issue data for dash graph')
     parser.add_argument('repo', help='local directory or github repo name')
     parser.add_argument('-t', '--token', help='personal access or OAuth token')
-    parser.add_argument('-r', '--close-regex', default=r'"changetime": "([^"]*)"',
+    parser.add_argument('-r', '--close-regex', default=r'"status": "closed",\s*"changetime": "([^"]*)"',
                         help='regular expression to find close time in the issue body (for trac legacy)')
     parser.add_argument('-e', '--creator-regex', default=r'"reporter": "([^"]*)"',
                         help='regular expression to find creator in the issue body (for trac legacy)')
@@ -50,11 +50,13 @@ def write_milestones(outdir, milestones, csv):
 
 
 def write_issue(df, issue, options):
-    closed = issue["closed_at"] if issue["closed_at"] else "2222-01-01T00:00:00Z"
-    if options.close_regex:
-        closed_match = re.search(options.close_regex, issue["body"] or "")
-        if closed_match:
-            closed = closed_match.group(1)
+    closed = "2222-01-01T00:00:00Z"
+    if issue["closed_at"]:
+        closed = issue["closed_at"]
+        if options.close_regex:
+            closed_match = re.search(options.close_regex, issue["body"] or "")
+            if closed_match:
+                closed = closed_match.group(1)
     creator = issue["user"]["login"]
     if options.creator_regex:
         creator_match = re.search(options.creator_regex, issue["body"] or "")
