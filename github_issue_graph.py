@@ -120,10 +120,11 @@ def update_figure(categories, options, creator_filter, *label_filters):
         for category in categories:
             data_map = count_issues(category, data_map, options, filters)
         data = pd.concat(data_map.values()).sort_values('time')
-#        print(data)
+        # print(data)
         if data.empty:
             return px.scatter(x=[0], y=[0])
-        fig = px.area(data, x="time", y="count", color='label', color_discrete_map=label_colors)
+        color_map = getattr(ighig_config, "category_colors") or label_colors
+        fig = px.area(data, x="time", y="count", color='label', color_discrete_map=color_map)
     if 'milestones' in options:
         for milestone in milestones.values:
             if not pd.isnull(milestone[1]):
