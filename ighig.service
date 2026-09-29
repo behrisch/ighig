@@ -1,0 +1,38 @@
+[Unit]
+Description=ighig gunicorn daemon
+After=network.target
+
+[Service]
+User=www-data
+Group=www-data
+
+LogsDirectory=gunicorn/ighig
+RuntimeDirectory=gunicorn/ighig
+
+WorkingDirectory=/srv/www/ighig/
+
+Environment=GUNICORN_BIN=/srv/git/ighig_env/bin/gunicorn
+Environment=GUNICORN_WORKER=1
+Environment=GUNICORN_PORT=8100
+Environment=GUNICORN_TIMEOUT=30
+Environment=GUNICORN_PID_FILE=/run/gunicorn/ighig/pid
+Environment=GUNICORN_ACCESS_LOG_FILE=/var/log/gunicorn/ighig/access.log
+Environment=GUNICORN_ERROR_LOG_FILE=/var/log/gunicorn/ighig/error.log
+
+ExecStart=/bin/sh -c '${GUNICORN_BIN} \
+  --workers ${GUNICORN_WORKER} \
+  --pid ${GUNICORN_PID_FILE} \
+  --bind 0.0.0.0:${GUNICORN_PORT} \
+  --timeout ${GUNICORN_TIMEOUT} \
+  --access-logfile ${GUNICORN_ACCESS_LOG_FILE} \
+  --error-logfile ${GUNICORN_ERROR_LOG_FILE} \
+  "github_issue_graph:app"'
+
+ExecReload=/bin/sh -c '/usr/bin/pkill -HUP -F ${GUNICORN_PID_FILE}'
+
+ExecStop=/bin/sh -c '/usr/bin/pkill -TERM -F ${GUNICORN_PID_FILE}'
+
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

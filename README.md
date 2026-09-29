@@ -54,6 +54,28 @@ The first parameter to WSGIScriptAlias defines the last part of the URL to find 
 3. Adapt your ighig_config.py, especially make sure that requests_pathname_prefix
  is the same as your WSGIScriptAlias.
 
+## Alternatively: Deploying on Gunicorn
+1. Copy at least requirements.txt, github_issue_graph.py, ighig.wsgi and ighig_config.py
+together with your generated data files to your web server, for instance to /srv/www/ighig.
+
+2. Create a virtual environment installing the dependencies and gunicorn.
+```
+cd /srv/www/ighig
+python -m venv ighig_env
+ighig_env/bin/pip install -r requirements.txt gunicorn
+```
+
+3. Run gunicorn to test
+```
+cd /srv/www/ighig
+ighig_env/bin/gunicorn github_issue_graph:app
+```
+
+If you want to run this as a regular service use the existing ighig.service as a template.
+
+4. Adapt your ighig_config.py, especially make sure that requests_pathname_prefix
+ is the same as the directory part of the URL you use to reach the gunicorn.
+
 ## Similar projects
 There are other projects analysing GitHub issues:
 * https://github.com/nafpliot/github-issue-stats-py (similar approach to ighig but no timelines and no processing of downloaded data)
